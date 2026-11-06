@@ -1,0 +1,79 @@
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/montserrat/800.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    @apply font-body text-navy bg-cream antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           bg-navy text-white font-heading font-semibold text-sm rounded-lg
+           min-h-[44px] min-w-[44px]
+           hover:bg-navy-light active:bg-navy-dark
+           transition-all duration-200 ease-out
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           bg-transparent border-2 border-navy text-navy font-heading font-semibold text-sm rounded-lg
+           min-h-[44px] min-w-[44px]
+           hover:bg-navy hover:text-white
+           transition-all duration-200 ease-out
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           bg-gold text-white font-heading font-semibold text-sm rounded-lg
+           min-h-[44px] min-w-[44px]
+           hover:bg-gold-dark active:bg-gold-dark
+           transition-all duration-200 ease-out
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3
+           bg-red-600 text-white font-heading font-semibold text-sm rounded-lg
+           min-h-[44px] min-w-[44px]
+           hover:bg-red-700
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .input {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-navy
+           text-sm font-body placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent
+           transition-shadow duration-150
+           disabled:bg-gray-100 disabled:cursor-not-allowed;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+  }
+  .section-title {
+    @apply font-heading font-bold text-2xl md:text-3xl text-navy;
+  }
+  .section-subtitle {
+    @apply text-gray-500 text-sm md:text-base mt-2 max-w-xl;
+  }
+  .label {
+    @apply block text-sm font-medium text-navy mb-1;
+  }
+}
