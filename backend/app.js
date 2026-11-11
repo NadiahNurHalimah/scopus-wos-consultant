@@ -9,6 +9,9 @@ const serviceRoutes      = require('./src/routes/services');
 const adminRoutes        = require('./src/routes/admin');
 const consultationRoutes = require('./src/routes/consultations');
 const manuscriptRoutes   = require('./src/routes/manuscripts');
+const settingRoutes      = require('./src/routes/settings');
+const paymentRoutes      = require('./src/routes/payments');
+const messageRoutes      = require('./src/routes/messages');
 
 const app = express();
 
@@ -35,6 +38,9 @@ app.use('/api/services',      serviceRoutes);
 app.use('/api/admin',         adminRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/manuscripts',   manuscriptRoutes);
+app.use('/api/settings',      settingRoutes);
+app.use('/api/payments',      paymentRoutes);
+app.use('/api/messages',      messageRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Endpoint tidak ditemukan' });

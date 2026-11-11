@@ -68,6 +68,21 @@ export function StatusBadge({ status, label }) {
   );
 }
 
+const PAYMENT_STYLES = {
+  pending:   'bg-yellow-100 text-yellow-800 border-yellow-200',
+  paid:      'bg-green-100 text-green-800 border-green-200',
+  rejected:  'bg-red-100 text-red-800 border-red-200',
+};
+
+export function PaymentStatusBadge({ status, label }) {
+  const style = PAYMENT_STYLES[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${style}`}>
+      {label || status}
+    </span>
+  );
+}
+
 // Card component
 export function Card({ children, className = '' }) {
   return (
@@ -93,11 +108,22 @@ export function Button({ variant = 'primary', className = '', children, ...props
 }
 
 // Input
-export function Input({ label, id, error, className = '', ...props }) {
+export function Input({ label, id, error, className = '', rightElement, ...props }) {
   return (
     <div className="w-full">
       {label && <label htmlFor={id} className="label">{label}</label>}
-      <input id={id} className={`input ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}`} {...props} />
+      <div className="relative flex items-center">
+        <input
+          id={id}
+          className={`input ${rightElement ? 'pr-11' : ''} ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}`}
+          {...props}
+        />
+        {rightElement && (
+          <div className="absolute right-3 flex items-center">
+            {rightElement}
+          </div>
+        )}
+      </div>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
@@ -136,12 +162,12 @@ export function Textarea({ label, id, error, className = '', ...props }) {
 }
 
 // Modal dialog
-export function Modal({ open, title, children, onClose }) {
+export function Modal({ open, title, children, onClose, maxWidth = 'max-w-md' }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-navy/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${maxWidth} p-6 animate-fade-in max-h-[90vh] overflow-y-auto`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-heading font-bold text-lg text-navy">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none min-h-[44px] min-w-[44px] flex items-center justify-center">

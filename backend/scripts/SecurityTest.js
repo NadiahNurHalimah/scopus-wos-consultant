@@ -125,6 +125,50 @@ async function cleanup() {
             }
         }
 
+        // Hapus file bukti pembayaran uji
+        const [paymentFiles] = await pool.query(
+            'SELECT proof_path FROM payments WHERE consultation_id IN (SELECT id FROM consultations WHERE client_id IN (?))',
+            [ids]
+        );
+        for (const pf of paymentFiles) {
+            if (pf.proof_path) {
+                const candidates = [
+                    pf.proof_path,
+                    path.resolve(__dirname, '..', pf.proof_path),
+                    path.resolve(__dirname, '..', 'uploads', 'payments', path.basename(pf.proof_path)),
+                ];
+                for (const c of candidates) {
+                    if (fs.existsSync(c)) {
+                        fs.unlinkSync(c);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Hapus file lampiran pesan uji
+        const [msgFiles] = await pool.query(
+            'SELECT attachment_path FROM messages WHERE consultation_id IN (SELECT id FROM consultations WHERE client_id IN (?))',
+            [ids]
+        );
+        for (const mf of msgFiles) {
+            if (mf.attachment_path) {
+                const candidates = [
+                    mf.attachment_path,
+                    path.resolve(__dirname, '..', mf.attachment_path),
+                    path.resolve(__dirname, '..', 'uploads', 'messages', path.basename(mf.attachment_path)),
+                ];
+                for (const c of candidates) {
+                    if (fs.existsSync(c)) {
+                        fs.unlinkSync(c);
+                        break;
+                    }
+                }
+            }
+        }
+
+        await pool.query('DELETE FROM payments WHERE consultation_id IN (SELECT id FROM consultations WHERE client_id IN (?))', [ids]);
+        await pool.query('DELETE FROM messages WHERE consultation_id IN (SELECT id FROM consultations WHERE client_id IN (?))', [ids]);
         await pool.query('DELETE FROM consultations WHERE client_id IN (?)', [ids]);
         await pool.query('DELETE FROM users WHERE id IN (?)', [ids]);
         console.log('\nData uji sudah dibersihkan.');
@@ -323,6 +367,158 @@ async function run() {
         const dlC2 = await api('GET', `/api/manuscripts/${mId}/download`, { token: tokenC });
         check('Konsultan yang ditugaskan bisa mengunduh naskah', dlC2.status === 200, `(status ${dlC2.status})`);
     }
+
+    section('9. Fitur Baru Tugas 3A: Pengaturan Situs (Settings)');
+    const setNoAuth = await api('GET', '/api/settings/payment');
+    check('Ambil rekening pembayaran tanpa login ditolak', setNoAuth.status === 401, `(status ${setNoAuth.status})`);
+
+    const setClient = await api('GET', '/api/settings/payment', { token: tokenA });
+    check('Klien login bisa mengambil rekening pembayaran', setClient.status === 200 && Boolean(setClient.data?.data?.bank), `(status ${setClient.status})`);
+
+    const adminSetByClient = await api('GET', '/api/admin/settings', { token: tokenA });
+    check('Klien tidak bisa membuka endpoint admin settings', adminSetByClient.status === 403, `(status ${adminSetByClient.status})`);
+
+    const adminGetSet = await api('GET', '/api/admin/settings', { token: admin });
+    check('Admin bisa membuka semua settings', adminGetSet.status === 200 && Boolean(adminGetSet.data?.settings), `(status ${adminGetSet.status})`);
+
+    const updateSet = await api('PUT', '/api/admin/settings', {
+        token: admin,
+        json: { payment_bank: 'BANK_UJI_COBA' },
+    });
+    check('Admin bisa memperbarui settings', updateSet.status === 200, `(status ${updateSet.status})`);
+
+    section('10. Fitur Baru Tugas 3A: Tagihan Otomatis & Pembayaran');
+    const consDetailA = await api('GET', `/api/consultations/${consId}`, { token: tokenA });
+    const paymentSummary = consDetailA.data?.data?.payment_summary;
+    check('Konsultasi baru memuat tagihan pembayaran pending dengan unique_code',
+        paymentSummary && paymentSummary.status === 'pending' && Number(paymentSummary.unique_code) > 0,
+        `(summary: ${JSON.stringify(paymentSummary)})`
+    );
+
+    const [payRows] = await pool.query('SELECT * FROM payments WHERE consultation_id = ?', [consId]);
+    const paymentId = payRows[0]?.id;
+
+    const proofOther = await api('POST', `/api/consultations/${consId}/payments/proof`, {
+        token: tokenB,
+        form: uploadForm(REAL_PDF, 'bukti_b.pdf', 'application/pdf'),
+    });
+    check('Klien B tidak bisa mengunggah bukti pembayaran untuk konsultasi A', rejected(proofOther.status), `(status ${proofOther.status})`);
+
+    const proofOk = await api('POST', `/api/consultations/${consId}/payments/proof`, {
+        token: tokenA,
+        form: uploadForm(REAL_PDF, 'bukti_asli.pdf', 'application/pdf'),
+    });
+    check('Klien A berhasil mengunggah bukti pembayaran', success(proofOk.status), `(status ${proofOk.status})`);
+
+    const consAfterProof = await api('GET', `/api/consultations/${consId}`, { token: tokenA });
+    check('Status konsultasi berubah jadi awaiting_payment setelah bukti diunggah',
+        consAfterProof.data?.data?.status === 'awaiting_payment',
+        `(status: ${consAfterProof.data?.data?.status})`
+    );
+
+    const proofDLNoAuth = await api('GET', `/api/payments/${paymentId}/proof`);
+    check('Unduh bukti pembayaran tanpa login ditolak', proofDLNoAuth.status === 401, `(status ${proofDLNoAuth.status})`);
+
+    const proofDLClientB = await api('GET', `/api/payments/${paymentId}/proof`, { token: tokenB });
+    check('Klien B tidak bisa mengunduh bukti pembayaran milik Klien A', proofDLClientB.status === 403, `(status ${proofDLClientB.status})`);
+
+    const proofDLClientA = await api('GET', `/api/payments/${paymentId}/proof`, { token: tokenA });
+    check('Klien A pemilik bisa mengunduh bukti pembayarannya', proofDLClientA.status === 200, `(status ${proofDLClientA.status})`);
+
+    const payUpdateByClient = await api('PATCH', `/api/payments/${paymentId}`, {
+        token: tokenA,
+        json: { status: 'paid' },
+    });
+    check('Klien tidak bisa mengubah status verifikasi pembayaran', rejected(payUpdateByClient.status), `(status ${payUpdateByClient.status})`);
+
+    const payRejectNoNote = await api('PATCH', `/api/payments/${paymentId}`, {
+        token: admin,
+        json: { status: 'rejected' },
+    });
+    check('Admin menolak pembayaran tanpa reject_note ditolak (400)', rejected(payRejectNoNote.status), `(status ${payRejectNoNote.status})`);
+
+    const payConfirm = await api('PATCH', `/api/payments/${paymentId}`, {
+        token: admin,
+        json: { status: 'paid' },
+    });
+    check('Admin menyetujui pembayaran (paid)', success(payConfirm.status), `(status ${payConfirm.status})`);
+
+    const consAfterPaid = await api('GET', `/api/consultations/${consId}`, { token: tokenA });
+    check('Status konsultasi otomatis menjadi in_review setelah pembayaran paid',
+        consAfterPaid.data?.data?.status === 'in_review',
+        `(status: ${consAfterPaid.data?.data?.status})`
+    );
+
+    const payReupdate = await api('PATCH', `/api/payments/${paymentId}`, {
+        token: admin,
+        json: { status: 'rejected', reject_note: 'Batal' },
+    });
+    check('Pembayaran yang sudah paid tidak boleh diubah lagi', rejected(payReupdate.status), `(status ${payReupdate.status})`);
+
+    section('11. Fitur Baru Tugas 3A: Pesan & Lampiran');
+    const msgB = await api('POST', `/api/consultations/${consId}/messages`, {
+        token: tokenB,
+        json: { body: 'Halo dari klien B yang tidak berhak' },
+    });
+    check('Klien B tidak bisa mengirim pesan ke konsultasi klien A', rejected(msgB.status), `(status ${msgB.status})`);
+
+    const msgA = await api('POST', `/api/consultations/${consId}/messages`, {
+        token: tokenA,
+        json: { body: 'Halo konsultan, naskah saya sudah siap' },
+    });
+    check('Klien A bisa mengirim pesan teks', success(msgA.status), `(status ${msgA.status})`);
+
+    const longText = 'x'.repeat(2001);
+    const msgLong = await api('POST', `/api/consultations/${consId}/messages`, {
+        token: tokenA,
+        json: { body: longText },
+    });
+    check('Pesan lebih dari 2000 karakter ditolak (400)', rejected(msgLong.status), `(status ${msgLong.status})`);
+
+    const formWithAttach = new FormData();
+    formWithAttach.append('body', 'Berikut dokumen pendukung');
+    formWithAttach.append('attachment', new Blob([REAL_PDF], { type: 'application/pdf' }), 'lampiran.pdf');
+
+    const msgWithAttach = await api('POST', `/api/consultations/${consId}/messages`, {
+        token: tokenA,
+        form: formWithAttach,
+    });
+    check('Klien A bisa mengirim pesan dengan lampiran PDF', success(msgWithAttach.status), `(status ${msgWithAttach.status})`);
+    const attachMsgId = msgWithAttach.data?.data?.id;
+
+    const attachB = await api('GET', `/api/messages/${attachMsgId}/attachment`, { token: tokenB });
+    check('Klien B tidak bisa mengunduh lampiran pesan konsultasi A', rejected(attachB.status), `(status ${attachB.status})`);
+
+    const attachC = await api('GET', `/api/messages/${attachMsgId}/attachment`, { token: tokenC });
+    check('Konsultan yang ditugaskan bisa mengunduh lampiran pesan', attachC.status === 200, `(status ${attachC.status})`);
+
+    const consUnread = await api('GET', `/api/consultations/${consId}`, { token: tokenC });
+    check('Konsultan melihat pesan belum dibaca (unread_count > 0)',
+        Number(consUnread.data?.data?.unread_count) >= 2,
+        `(unread_count: ${consUnread.data?.data?.unread_count})`
+    );
+
+    const markReadC = await api('PATCH', `/api/consultations/${consId}/messages/read`, { token: tokenC });
+    check('Konsultan bisa menandai pesan sebagai sudah dibaca', success(markReadC.status), `(status ${markReadC.status})`);
+
+    const consAfterRead = await api('GET', `/api/consultations/${consId}`, { token: tokenC });
+    check('Setelah ditandai dibaca, unread_count menjadi 0',
+        Number(consAfterRead.data?.data?.unread_count) === 0,
+        `(unread_count: ${consAfterRead.data?.data?.unread_count})`
+    );
+
+    section('12. Fitur Baru Tugas 3A: Filter & Summary Konsultasi');
+    const summaryA = await api('GET', '/api/consultations/summary', { token: tokenA });
+    check('Klien A bisa mengakses /api/consultations/summary',
+        summaryA.status === 200 && summaryA.data?.data?.total >= 1,
+        `(summary: ${JSON.stringify(summaryA.data)})`
+    );
+
+    const listFilter = await api('GET', `/api/consultations?status=in_review`, { token: tokenA });
+    check('Filter ?status= mengembalikan hasil yang sesuai',
+        listFilter.status === 200 && Array.isArray(listFilter.data?.data),
+        `(count: ${listFilter.data?.data?.length})`
+    );
 }
 
 async function main() {

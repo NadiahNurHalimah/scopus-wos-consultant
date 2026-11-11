@@ -7,6 +7,10 @@ const {
   updateService,
   deleteService,
 } = require('../controllers/serviceController');
+const {
+  adminGetSettings,
+  adminUpdateSettings,
+} = require('../controllers/settingController');
 
 // Semua route di bawah ini hanya untuk admin
 router.use(requireAuth, requireRole('admin'));
@@ -16,5 +20,8 @@ router.post('/services', createService);
 router.get('/services/:id', getService);
 router.put('/services/:id', updateService);
 router.delete('/services/:id', deleteService);
+
+router.get('/settings', adminGetSettings);
+router.put('/settings', adminUpdateSettings);
 
 module.exports = router;

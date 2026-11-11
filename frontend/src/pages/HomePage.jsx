@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { services as servicesApi } from '../lib/api';
-import { Spinner, StatusBadge } from '../components/ui';
+import { Spinner } from '../components/ui';
 import { SITE } from '../config/site';
 
 function formatIDR(amount) {
@@ -12,9 +13,12 @@ function formatIDR(amount) {
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 function Hero() {
-  const { t } = useTranslation();
+  const { t }    = useTranslation();
+  const { user } = useAuth();
+  const consultHref = user ? '/dashboard' : '/masuk';
+
   return (
-    <section className="relative bg-navy min-h-screen flex items-center overflow-hidden pt-16">
+    <section id="beranda" className="relative bg-navy min-h-screen flex items-center overflow-hidden pt-16">
       {/* Background decorations */}
       <div className="absolute inset-0">
         <div className="absolute top-20 right-0 w-96 h-96 bg-gold/5 rounded-full blur-3xl" />
@@ -22,41 +26,51 @@ function Hero() {
         <div className="absolute inset-0 bg-[url('/logo.png')] bg-no-repeat bg-center bg-[length:600px] opacity-[0.03]" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="max-w-3xl animate-slide-up">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-gold/10 border border-gold/30 rounded-full px-4 py-1.5 mb-6">
-            <span className="text-gold text-xs font-semibold tracking-wide">✦ Scopus & Web of Science</span>
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 w-full">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Title, single explanatory sentence, two buttons */}
+          <div className="animate-slide-up">
+            <div className="inline-flex items-center gap-2 bg-gold/10 border border-gold/30 rounded-full px-4 py-1.5 mb-6">
+              <span className="text-gold text-xs font-semibold tracking-wide">✦ {t('hero.badge')}</span>
+            </div>
+
+            <h1 className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-white leading-tight mb-6">
+              {t('hero.title')}
+            </h1>
+            <p className="text-white/70 text-base sm:text-lg leading-relaxed mb-8 max-w-xl">
+              {t('hero.desc')}
+            </p>
+
+            <div className="flex flex-wrap gap-4">
+              <Link to={consultHref} className="btn-gold text-base px-7 py-3.5">
+                {t('hero.cta')}
+              </Link>
+              <a href="#layanan" className="btn-secondary !text-white !border-white/30 text-base px-7 py-3.5 hover:!bg-white/10">
+                {t('hero.cta2')}
+              </a>
+            </div>
           </div>
 
-          <h1 className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-white leading-tight mb-6">
-            {t('hero.title')}
-          </h1>
-          <p className="text-white/70 text-base sm:text-lg leading-relaxed mb-8 max-w-2xl">
-            {t('hero.desc')}
-          </p>
-
-          <div className="flex flex-wrap gap-4">
-            <Link to="/daftar" className="btn-gold text-base px-8 py-4">
-              {t('hero.cta')}
-            </Link>
-            <a href="#layanan" className="btn-secondary !text-white !border-white/30 text-base px-8 py-4 hover:!bg-white/10">
-              {t('hero.cta2')}
-            </a>
-          </div>
-
-          {/* Trust indicators */}
-          <div className="flex flex-wrap gap-8 mt-12">
-            {[
-              { n: '100+', label: 'Naskah Dibantu' },
-              { n: '50+',  label: 'Jurnal Terindeks' },
-              { n: '95%',  label: 'Tingkat Keberhasilan' },
-            ].map((s) => (
-              <div key={s.n}>
-                <div className="font-heading font-extrabold text-2xl text-gold">{s.n}</div>
-                <div className="text-white/50 text-xs mt-0.5">{s.label}</div>
+          {/* Right: Dedicated image placeholder (no human photos or external images) */}
+          <div className="w-full">
+            <div
+              role="img"
+              aria-label={t('hero.image_placeholder')}
+              className="relative rounded-2xl border-2 border-dashed border-gold/30 bg-white/5 backdrop-blur-sm p-8 sm:p-12
+                         flex flex-col items-center justify-center text-center min-h-[280px] sm:min-h-[360px]"
+            >
+              <div className="w-20 h-20 rounded-2xl bg-gold/15 border border-gold/30 flex items-center justify-center mb-5">
+                <svg className="w-10 h-10 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                </svg>
               </div>
-            ))}
+              <p className="font-heading font-semibold text-white text-base sm:text-lg mb-1">
+                {t('hero.image_placeholder')}
+              </p>
+              <p className="text-white/50 text-xs sm:text-sm max-w-xs">
+                {t('hero.image_sub')}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -71,33 +85,41 @@ function Hero() {
   );
 }
 
-// ─── About ────────────────────────────────────────────────────────────────────
-function About() {
+// ─── Why Choose Us (4 short points) ───────────────────────────────────────────
+function WhyChooseUs() {
   const { t } = useTranslation();
+  const points = [
+    { key: 'p1', icon: '🎯' },
+    { key: 'p2', icon: '🎓' },
+    { key: 'p3', icon: '📋' },
+    { key: 'p4', icon: '🔒' },
+  ];
+
   return (
-    <section id="tentang" className="py-20 bg-cream">
+    <section id="kenapa-kami" className="py-20 bg-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="inline-block bg-teal/10 text-teal text-xs font-semibold px-3 py-1 rounded-full mb-4">
-              Tentang Kami
-            </div>
-            <h2 className="section-title mb-4">{t('about.title')}</h2>
-            <p className="text-gray-600 leading-relaxed mb-8">{t('about.desc')}</p>
-            <Link to="/daftar" className="btn-primary">{t('hero.cta')}</Link>
-          </div>
-          <div className="grid grid-cols-3 gap-6">
-            {[
-              { n: t('about.stat1'), label: t('about.stat1label'), color: 'bg-navy' },
-              { n: t('about.stat2'), label: t('about.stat2label'), color: 'bg-teal' },
-              { n: t('about.stat3'), label: t('about.stat3label'), color: 'bg-gold' },
-            ].map((s) => (
-              <div key={s.n} className={`${s.color} rounded-2xl p-6 text-white text-center`}>
-                <div className="font-heading font-extrabold text-3xl mb-1">{s.n}</div>
-                <div className="text-white/70 text-xs leading-tight">{s.label}</div>
+        <div className="text-center mb-12">
+          <h2 className="section-title mb-3">{t('why.title')}</h2>
+          <p className="section-subtitle mx-auto">{t('why.subtitle')}</p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {points.map((p) => (
+            <div
+              key={p.key}
+              className="bg-white rounded-2xl p-6 border border-cream-dark shadow-sm hover:border-gold/30 transition-all duration-200"
+            >
+              <div className="w-12 h-12 rounded-xl bg-navy/5 flex items-center justify-center text-2xl mb-4">
+                {p.icon}
               </div>
-            ))}
-          </div>
+              <h3 className="font-heading font-bold text-navy text-base mb-2">
+                {t(`why.${p.key}_title`)}
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                {t(`why.${p.key}_desc`)}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -108,9 +130,9 @@ function About() {
 function Services() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.slice(0, 2) || 'id';
-  const [svcs, setSvcs]     = useState([]);
+  const [svcs, setSvcs]       = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
     servicesApi.list()
@@ -192,7 +214,6 @@ function HowItWorks() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {steps.map((s, i) => (
             <div key={s.n} className="relative text-center">
-              {/* Connector line */}
               {i < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-8 left-1/2 w-full h-0.5 bg-gold/20" />
               )}
@@ -257,34 +278,15 @@ function FAQ() {
   );
 }
 
-// ─── Testimonials ─────────────────────────────────────────────────────────────
-function Testimonials() {
-  const { t } = useTranslation();
-  return (
-    <section id="testimoni" className="py-20 bg-cream">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="section-title mb-3">{t('testimonials.title')}</h2>
-          <p className="section-subtitle mx-auto">{t('testimonials.subtitle')}</p>
-        </div>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="text-5xl mb-4">💬</div>
-          <p className="text-gray-500 text-sm max-w-md">{t('testimonials.empty')}</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ─── Contact ──────────────────────────────────────────────────────────────────
 function Contact() {
   const { t } = useTranslation();
   return (
-    <section id="kontak" className="py-20 bg-navy">
+    <section id="kontak" className="py-20 bg-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="font-heading font-bold text-3xl text-white mb-3">{t('contact.title')}</h2>
-          <p className="text-white/60 text-sm">{t('contact.subtitle')}</p>
+          <h2 className="section-title mb-3">{t('contact.title')}</h2>
+          <p className="section-subtitle mx-auto">{t('contact.subtitle')}</p>
         </div>
         <div className="grid sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
           {[
@@ -307,15 +309,15 @@ function Contact() {
               href: `mailto:${SITE.email}`,
             },
           ].map((c) => (
-            <div key={c.title} className="text-center">
+            <div key={c.title} className="text-center bg-white rounded-2xl p-6 border border-cream-dark shadow-sm">
               <div className="text-3xl mb-3">{c.icon}</div>
-              <h3 className="font-heading font-semibold text-gold text-sm mb-1">{c.title}</h3>
+              <h3 className="font-heading font-semibold text-gold-dark text-sm mb-1">{c.title}</h3>
               {c.href ? (
-                <a href={c.href} className="text-white/70 text-sm hover:text-gold transition-colors break-all">
+                <a href={c.href} className="text-gray-600 text-sm hover:text-gold transition-colors break-all">
                   {c.value}
                 </a>
               ) : (
-                <p className="text-white/70 text-sm">{c.value}</p>
+                <p className="text-gray-600 text-sm">{c.value}</p>
               )}
             </div>
           ))}
@@ -325,10 +327,33 @@ function Contact() {
             className="btn-gold px-8 py-4">
             {t('contact.whatsapp_cta')}
           </a>
-          <a href={`mailto:${SITE.email}`} className="btn-secondary !text-white !border-white/30 px-8 py-4 hover:!bg-white/10">
+          <a href={`mailto:${SITE.email}`} className="btn-secondary px-8 py-4">
             {t('contact.email_cta')}
           </a>
         </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Bottom Call to Action (before Footer) ───────────────────────────────────
+function BottomCTA() {
+  const { t }    = useTranslation();
+  const { user } = useAuth();
+  const consultHref = user ? '/dashboard' : '/masuk';
+
+  return (
+    <section className="py-16 bg-navy border-b border-white/10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 className="font-heading font-bold text-2xl sm:text-3xl text-white mb-4">
+          {t('cta_bottom.title')}
+        </h2>
+        <p className="text-white/70 text-sm sm:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
+          {t('cta_bottom.desc')}
+        </p>
+        <Link to={consultHref} className="btn-gold text-base px-8 py-4">
+          {t('cta_bottom.btn')}
+        </Link>
       </div>
     </section>
   );
@@ -339,12 +364,12 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <About />
+      <WhyChooseUs />
       <Services />
       <HowItWorks />
       <FAQ />
-      <Testimonials />
       <Contact />
+      <BottomCTA />
     </>
   );
 }

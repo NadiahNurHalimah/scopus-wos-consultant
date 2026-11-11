@@ -21,6 +21,7 @@ export default function RegisterPage() {
   const navigate     = useNavigate();
 
   const [form, setForm] = useState({ name: '', email: '', password: '', whatsapp: '', institution: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiErr, setApiErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -90,12 +91,32 @@ export default function RegisterPage() {
               error={errors.email ? t(errors.email) : ''}
             />
             <Input
-              id="password" name="password" type="password"
+              id="password" name="password"
+              type={showPassword ? 'text' : 'password'}
               label={t('auth.password')}
               value={form.password} onChange={change}
               placeholder="Min. 8 karakter"
               autoComplete="new-password"
               error={errors.password ? t(errors.password) : ''}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-navy transition-colors focus:outline-none p-1"
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              }
             />
             <Input
               id="whatsapp" name="whatsapp" type="tel"

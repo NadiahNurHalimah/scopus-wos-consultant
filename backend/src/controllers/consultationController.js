@@ -13,7 +13,6 @@ async function generateCode(conn) {
   const year = new Date().getFullYear();
   const prefix = `SA-${year}-`;
 
-  // Kunci row menggunakan SELECT FOR UPDATE agar aman di lingkungan concurrent
   const [rows] = await conn.query(
     `SELECT code FROM consultations WHERE code LIKE ? ORDER BY id DESC LIMIT 1 FOR UPDATE`,
     [`${prefix}%`]
@@ -27,6 +26,34 @@ async function generateCode(conn) {
   }
 
   return `${prefix}${String(nextNum).padStart(4, '0')}`;
+}
+
+/**
+ * Menghasilkan unique_code 1..999 yang tidak sedang dipakai tagihan pending lain.
+ */
+async function generateUniqueCode(conn) {
+  const [rows] = await conn.query(
+    "SELECT unique_code FROM payments WHERE status = 'pending' AND unique_code > 0 FOR UPDATE"
+  );
+  const usedCodes = new Set(rows.map((r) => r.unique_code));
+
+  // Coba acak 1..999
+  for (let i = 0; i < 2000; i++) {
+    const candidate = Math.floor(Math.random() * 999) + 1;
+    if (!usedCodes.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  // Jika random padat, cari angka 1..999 pertama yang kosong
+  for (let c = 1; c <= 999; c++) {
+    if (!usedCodes.has(c)) {
+      return c;
+    }
+  }
+
+  // Fallback
+  return Math.floor(Math.random() * 999) + 1;
 }
 
 /**
@@ -48,6 +75,8 @@ const TRANSITIONS = {
 /**
  * POST /api/consultations
  * Klien mengajukan konsultasi baru.
+ * Buat satu tagihan pending di payments: base_amount = harga layanan, unique_code = 1..999, amount = base_amount + unique_code.
+ * Status konsultasi tetap 'submitted'.
  */
 async function createConsultation(req, res) {
   const clientId = req.user.id;
@@ -74,12 +103,14 @@ async function createConsultation(req, res) {
 
   // Pastikan layanan ada dan aktif
   const [svcRows] = await pool.query(
-    'SELECT id FROM services WHERE id = ? AND is_active = 1',
+    'SELECT id, price FROM services WHERE id = ? AND is_active = 1',
     [service_id]
   );
   if (svcRows.length === 0) {
     return res.status(404).json({ message: 'Layanan tidak ditemukan atau tidak aktif' });
   }
+  const service = svcRows[0];
+  const baseAmount = Number(service.price) || 0;
 
   const conn = await pool.getConnection();
   try {
@@ -102,11 +133,23 @@ async function createConsultation(req, res) {
       ]
     );
 
+    const consultationId = result.insertId;
+
     // Catat log status awal
     await conn.query(
       `INSERT INTO consultation_status_logs (consultation_id, old_status, new_status, changed_by)
        VALUES (?, NULL, 'submitted', ?)`,
-      [result.insertId, clientId]
+      [consultationId, clientId]
+    );
+
+    // Buat tagihan pending di payments
+    const uniqueCode = await generateUniqueCode(conn);
+    const totalAmount = baseAmount + uniqueCode;
+
+    await conn.query(
+      `INSERT INTO payments (consultation_id, base_amount, unique_code, amount, method, status)
+       VALUES (?, ?, ?, ?, 'transfer', 'pending')`,
+      [consultationId, baseAmount, uniqueCode, totalAmount]
     );
 
     await conn.commit();
@@ -116,7 +159,7 @@ async function createConsultation(req, res) {
          FROM consultations c
          JOIN services s ON s.id = c.service_id
         WHERE c.id = ?`,
-      [result.insertId]
+      [consultationId]
     );
     return res.status(201).json({ message: 'Konsultasi berhasil diajukan', data: rows[0] });
   } catch (err) {
@@ -134,31 +177,56 @@ async function createConsultation(req, res) {
  * - Klien: hanya miliknya
  * - Konsultan: yang ditugaskan padanya
  * - Admin: semua
+ * Mendukung ?status= dan ?q= (cari kode atau judul), serta memuat unread_count per konsultasi.
  */
 async function listConsultations(req, res) {
   const { role, id: userId } = req.user;
+  const { status, q } = req.query;
 
   let sql = `
     SELECT c.id, c.code, c.manuscript_title, c.field, c.target_index, c.target_quartile,
            c.status, c.created_at, c.updated_at,
            s.name_id AS service_name_id, s.name_en AS service_name_en,
            u_client.name AS client_name,
-           u_consultant.name AS consultant_name
+           u_consultant.name AS consultant_name,
+           (
+             SELECT COUNT(*)
+               FROM messages m
+              WHERE m.consultation_id = c.id
+                AND m.sender_id != ?
+                AND m.is_read = 0
+           ) AS unread_count
       FROM consultations c
       JOIN services s ON s.id = c.service_id
       JOIN users u_client ON u_client.id = c.client_id
       LEFT JOIN users u_consultant ON u_consultant.id = c.consultant_id
   `;
-  const params = [];
+  const conditions = [];
+  const params = [userId]; // untuk subquery unread_count
 
   if (role === 'client') {
-    sql += ' WHERE c.client_id = ?';
+    conditions.push('c.client_id = ?');
     params.push(userId);
   } else if (role === 'consultant') {
-    sql += ' WHERE c.consultant_id = ?';
+    conditions.push('c.consultant_id = ?');
     params.push(userId);
   }
-  // admin: tanpa filter
+  // admin: tanpa filter peran
+
+  if (status && typeof status === 'string' && status.trim()) {
+    conditions.push('c.status = ?');
+    params.push(status.trim());
+  }
+
+  if (q && typeof q === 'string' && q.trim()) {
+    conditions.push('(c.code LIKE ? OR c.manuscript_title LIKE ?)');
+    const searchTerm = `%${q.trim()}%`;
+    params.push(searchTerm, searchTerm);
+  }
+
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
 
   sql += ' ORDER BY c.created_at DESC';
 
@@ -166,14 +234,76 @@ async function listConsultations(req, res) {
   res.json({ data: rows });
 }
 
+// ─── GET summary ──────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/consultations/summary
+ * Jumlah konsultasi per status sesuai peran pemanggil (untuk tab filter).
+ */
+async function getConsultationsSummary(req, res) {
+  const { role, id: userId } = req.user;
+
+  let sql = `
+    SELECT status, COUNT(*) AS count
+      FROM consultations
+  `;
+  const conditions = [];
+  const params = [];
+
+  if (role === 'client') {
+    conditions.push('client_id = ?');
+    params.push(userId);
+  } else if (role === 'consultant') {
+    conditions.push('consultant_id = ?');
+    params.push(userId);
+  }
+
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  sql += ' GROUP BY status';
+
+  const [rows] = await pool.query(sql, params);
+
+  const allStatuses = [
+    'submitted',
+    'awaiting_payment',
+    'in_review',
+    'in_progress',
+    'revision',
+    'completed',
+    'cancelled',
+  ];
+
+  const summary = { total: 0 };
+  allStatuses.forEach((s) => {
+    summary[s] = 0;
+  });
+
+  rows.forEach((r) => {
+    summary[r.status] = Number(r.count);
+    summary.total += Number(r.count);
+  });
+
+  res.json({ data: summary });
+}
+
 // ─── GET detail ───────────────────────────────────────────────────────────────
 
 /**
  * GET /api/consultations/:id
  * Cek bahwa peminta adalah pihak yang terkait.
+ * Memuat:
+ * - nama konsultan yang ditugaskan
+ * - daftar naskah (id, versi, nama file asli, pengunggah dan perannya, tanggal)
+ * - riwayat status dari consultation_status_logs (status lama, baru, pelaku, waktu)
+ * - ringkasan pembayaran terbaru (status, total)
+ * - jumlah pesan belum dibaca
  */
 async function getConsultation(req, res) {
   const { role, id: userId } = req.user;
+  const consultationId = req.params.id;
 
   const [rows] = await pool.query(
     `SELECT c.*,
@@ -186,7 +316,7 @@ async function getConsultation(req, res) {
        JOIN users u_client ON u_client.id = c.client_id
        LEFT JOIN users u_consultant ON u_consultant.id = c.consultant_id
       WHERE c.id = ?`,
-    [req.params.id]
+    [consultationId]
   );
   if (rows.length === 0) {
     return res.status(404).json({ message: 'Konsultasi tidak ditemukan' });
@@ -202,7 +332,67 @@ async function getConsultation(req, res) {
     return res.status(403).json({ message: 'Konsultasi ini tidak ditugaskan kepada Anda' });
   }
 
-  res.json({ data: c });
+  // 1. Daftar naskah (id, versi, nama file asli, pengunggah dan perannya, tanggal)
+  const [manuscripts] = await pool.query(
+    `SELECT m.id, m.version, m.original_name, m.size_bytes, m.mime_type, m.created_at,
+            u.id AS uploader_id, u.name AS uploader_name, u.role AS uploader_role
+       FROM manuscripts m
+       JOIN users u ON u.id = m.uploaded_by
+      WHERE m.consultation_id = ?
+      ORDER BY m.version ASC`,
+    [consultationId]
+  );
+
+  // 2. Riwayat status dari consultation_status_logs (status lama, baru, pelaku, waktu)
+  const [statusLogs] = await pool.query(
+    `SELECT l.id, l.old_status, l.new_status, l.created_at,
+            u.id AS changer_id, u.name AS changer_name, u.role AS changer_role
+       FROM consultation_status_logs l
+       LEFT JOIN users u ON u.id = l.changed_by
+      WHERE l.consultation_id = ?
+      ORDER BY l.created_at ASC, l.id ASC`,
+    [consultationId]
+  );
+
+  // 3. Ringkasan pembayaran terbaru (status, total / amount, base_amount, unique_code)
+  const [paymentRows] = await pool.query(
+    `SELECT id, amount, base_amount, unique_code, method, status, proof_path, reject_note, created_at, updated_at
+       FROM payments
+      WHERE consultation_id = ?
+      ORDER BY id DESC LIMIT 1`,
+    [consultationId]
+  );
+  const latestPayment = paymentRows.length > 0 ? paymentRows[0] : null;
+
+  // 4. Jumlah pesan belum dibaca
+  const [unreadRows] = await pool.query(
+    `SELECT COUNT(*) AS count
+       FROM messages
+      WHERE consultation_id = ?
+        AND sender_id != ?
+        AND is_read = 0`,
+    [consultationId, userId]
+  );
+  const unreadCount = Number(unreadRows[0]?.count || 0);
+
+  // Tambahkan field tanpa menghapus field lama
+  const responseData = {
+    ...c,
+    manuscripts,
+    status_logs: statusLogs,
+    latest_payment: latestPayment,
+    payment_summary: latestPayment
+      ? {
+          status: latestPayment.status,
+          total: latestPayment.amount,
+          base_amount: latestPayment.base_amount,
+          unique_code: latestPayment.unique_code,
+        }
+      : null,
+    unread_count: unreadCount,
+  };
+
+  res.json({ data: responseData });
 }
 
 // ─── Assign konsultan ─────────────────────────────────────────────────────────
@@ -305,7 +495,7 @@ async function updateStatus(req, res) {
     const updateFields = ['status = ?', 'updated_at = NOW()'];
     const updateParams = [newStatus];
     if (notes) {
-      // notes digunakan sebagai catatan tambahan pada log, tidak disimpan di konsultasi
+      // notes dapat disimpan bila diperlukan di masa mendatang
     }
     updateParams.push(req.params.id);
 
@@ -338,6 +528,7 @@ async function updateStatus(req, res) {
 module.exports = {
   createConsultation,
   listConsultations,
+  getConsultationsSummary,
   getConsultation,
   assignConsultant,
   updateStatus,

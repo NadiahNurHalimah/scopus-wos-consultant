@@ -11,6 +11,7 @@ import LoginPage              from './pages/LoginPage';
 import RegisterPage           from './pages/RegisterPage';
 import DashboardPage          from './pages/DashboardPage';
 import ConsultationDetailPage from './pages/ConsultationDetailPage';
+import ProfilePage            from './pages/ProfilePage';
 import NotFoundPage           from './pages/NotFoundPage';
 
 // ─── Guard: redirect ke /masuk jika belum login ───────────────────────────────
@@ -89,6 +90,13 @@ function AppRoutes() {
         <PrivateRoute>
           <DashboardLayout>
             <ConsultationDetailPage />
+          </DashboardLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/profil" element={
+        <PrivateRoute>
+          <DashboardLayout>
+            <ProfilePage />
           </DashboardLayout>
         </PrivateRoute>
       } />

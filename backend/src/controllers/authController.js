@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const { sendResetCodeEmail } = require('../services/emailService');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -89,4 +90,74 @@ async function me(req, res) {
   res.json({ user: publicUser(rows[0]) });
 }
 
-module.exports = { register, login, me };
+async function forgotPassword(req, res) {
+  const { email } = req.body || {};
+  if (!email || !EMAIL_RE.test(email)) {
+    return res.status(400).json({ message: 'Masukkan email yang valid' });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const [rows] = await pool.query('SELECT id, name FROM users WHERE email = ?', [cleanEmail]);
+
+  // Untuk keamanan, tetap berikan pesan berhasil meskipun email tidak terdaftar
+  if (rows.length === 0) {
+    return res.json({ message: 'Jika email terdaftar, kode verifikasi telah dikirimkan ke email Anda' });
+  }
+
+  // Generate 6 digit random number
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  // Berlaku 15 menit
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  // Tandai kode lama untuk email ini sebagai used
+  await pool.query('UPDATE password_resets SET used = 1 WHERE email = ? AND used = 0', [cleanEmail]);
+
+  await pool.query(
+    'INSERT INTO password_resets (email, code, expires_at) VALUES (?, ?, ?)',
+    [cleanEmail, code, expiresAt]
+  );
+
+  try {
+    await sendResetCodeEmail(cleanEmail, code);
+  } catch (mailErr) {
+    console.error('Gagal mengirim email reset password:', mailErr);
+  }
+
+  res.json({ message: 'Kode verifikasi telah dikirimkan ke email Anda' });
+}
+
+async function resetPassword(req, res) {
+  const { email, code, new_password } = req.body || {};
+
+  if (!email || !code || !new_password) {
+    return res.status(400).json({ message: 'Email, kode verifikasi, dan kata sandi baru wajib diisi' });
+  }
+
+  if (String(new_password).length < 8) {
+    return res.status(400).json({ message: 'Kata sandi minimal 8 karakter' });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanCode = String(code).trim();
+
+  const [resets] = await pool.query(
+    'SELECT * FROM password_resets WHERE email = ? AND code = ? AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
+    [cleanEmail, cleanCode]
+  );
+
+  if (resets.length === 0) {
+    return res.status(400).json({ message: 'Kode verifikasi tidak valid atau telah kedaluwarsa' });
+  }
+
+  const passwordHash = await bcrypt.hash(String(new_password), 10);
+
+  // Update password user
+  await pool.query('UPDATE users SET password_hash = ? WHERE email = ?', [passwordHash, cleanEmail]);
+
+  // Tandai kode sebagai terpakai
+  await pool.query('UPDATE password_resets SET used = 1 WHERE id = ?', [resets[0].id]);
+
+  res.json({ message: 'Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru Anda.' });
+}
+
+module.exports = { register, login, me, forgotPassword, resetPassword };
