@@ -12,16 +12,18 @@ const {
   adminUpdateSettings,
 } = require('../controllers/settingController');
 
-// Semua route di bawah ini hanya untuk admin
-router.use(requireAuth, requireRole('admin'));
+// Semua route di bawah ini memerlukan login
+router.use(requireAuth);
 
-router.get('/services', adminListServices);
-router.post('/services', createService);
-router.get('/services/:id', getService);
-router.put('/services/:id', updateService);
-router.delete('/services/:id', deleteService);
+// Layanan: GET boleh untuk admin dan owner (monitoring), mutasi hanya admin
+router.get('/services', requireRole('admin', 'owner'), adminListServices);
+router.post('/services', requireRole('admin'), createService);
+router.get('/services/:id', requireRole('admin', 'owner'), getService);
+router.put('/services/:id', requireRole('admin'), updateService);
+router.delete('/services/:id', requireRole('admin'), deleteService);
 
-router.get('/settings', adminGetSettings);
-router.put('/settings', adminUpdateSettings);
+// Pengaturan: GET boleh untuk admin dan owner (monitoring), PUT hanya admin
+router.get('/settings', requireRole('admin', 'owner'), adminGetSettings);
+router.put('/settings', requireRole('admin'), adminUpdateSettings);
 
 module.exports = router;

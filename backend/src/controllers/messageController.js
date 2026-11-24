@@ -131,6 +131,10 @@ async function sendMessage(req, res) {
     return res.status(access.error.status).json({ message: access.error.message });
   }
 
+  if (req.user.role === 'owner') {
+    return res.status(403).json({ message: 'Akun Owner hanya memiliki akses pemantauan dan tidak dapat mengirim pesan' });
+  }
+
   const { body } = req.body || {};
   const hasText = body && typeof body === 'string' && body.trim().length > 0;
   const hasFile = Boolean(req.file);
@@ -208,6 +212,10 @@ async function markMessagesAsRead(req, res) {
   const access = await checkConsultationAccess(consultationId, req.user);
   if (access.error) {
     return res.status(access.error.status).json({ message: access.error.message });
+  }
+
+  if (req.user.role === 'owner') {
+    return res.json({ message: 'Owner dalam mode pemantauan', affected_rows: 0 });
   }
 
   const [result] = await pool.query(

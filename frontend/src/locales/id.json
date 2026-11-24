@@ -339,6 +339,20 @@
     "completed": "Selesai",
     "cancelled": "Dibatalkan"
   },
+  "role": {
+    "client": "Klien",
+    "consultant": "Konsultan",
+    "admin": "Admin",
+    "owner": "Owner (Pemilik)"
+  },
+  "owner": {
+    "portal_subtitle": "Portal Pemantauan & Monitoring Pemilik",
+    "banner_title": "Mode Pemantauan Eksekutif (Owner)",
+    "banner_desc": "Anda memiliki akses pemantauan ke seluruh konsultasi, transaksi keuangan, dan layanan tanpa wewenang mutasi data.",
+    "badge": "Monitoring Only",
+    "readonly_notice": "Mode Pemantauan: Akun Owner tidak dapat mengubah data ini.",
+    "msg_readonly": "Mode Pemantauan: Akun Owner hanya dapat memantau percakapan."
+  },
   "common": {
     "loading": "Memuat...",
     "error": "Terjadi kesalahan",

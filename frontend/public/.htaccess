@@ -1,0 +1,31 @@
+# Scientia Advantage - konfigurasi Apache untuk aplikasi React (SPA)
+# File ini ikut tersalin ke dist/ saat "npm run build".
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Paksa HTTPS
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Jangan sentuh request API (ditangani aplikasi Node.js di cPanel)
+  RewriteRule ^api(/.*)?$ - [L]
+
+  # File atau folder yang benar-benar ada: tampilkan langsung
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Selain itu (mis. /masuk, /dashboard, /profil): arahkan ke index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# index.html dan service worker jangan di-cache agar versi baru langsung terlihat
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>

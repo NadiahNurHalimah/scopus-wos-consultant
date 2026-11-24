@@ -23,6 +23,7 @@ const EMAIL = {
     B: `sectest_b_${TAG}@test.local`,
     C: `sectest_c_${TAG}@test.local`,
     E: `sectest_e_${TAG}@test.local`,
+    O: `sectest_o_${TAG}@test.local`,
 };
 
 let pass = 0;
@@ -203,6 +204,11 @@ async function run() {
     const tokenC = loginC.data.token;
     const consultantId = await userId(EMAIL.C);
     const idA = await userId(EMAIL.A);
+
+    await registerUser('O');
+    await pool.query("UPDATE users SET role = 'owner' WHERE email = ?", [EMAIL.O]);
+    const loginO = await api('POST', '/api/auth/login', { json: { email: EMAIL.O, password: PASSWORD } });
+    const tokenO = loginO.data.token;
 
     const services = toArray((await api('GET', '/api/services')).data);
 
@@ -519,6 +525,49 @@ async function run() {
         listFilter.status === 200 && Array.isArray(listFilter.data?.data),
         `(count: ${listFilter.data?.data?.length})`
     );
+
+    section('13. Hak Akses Role Owner (Monitoring Only)');
+    const ownerServices = await api('GET', '/api/admin/services', { token: tokenO });
+    check('Owner bisa melihat daftar layanan admin (monitoring)', ownerServices.status === 200, `(status ${ownerServices.status})`);
+
+    const ownerSettings = await api('GET', '/api/admin/settings', { token: tokenO });
+    check('Owner bisa melihat pengaturan sistem admin', ownerSettings.status === 200, `(status ${ownerSettings.status})`);
+
+    const ownerConsultations = await api('GET', '/api/consultations', { token: tokenO });
+    check('Owner bisa memantau semua konsultasi', ownerConsultations.status === 200, `(status ${ownerConsultations.status})`);
+
+    const ownerPayments = await api('GET', '/api/payments', { token: tokenO });
+    check('Owner bisa memantau semua pembayaran', ownerPayments.status === 200, `(status ${ownerPayments.status})`);
+
+    const ownerCreateService = await api('POST', '/api/admin/services', {
+        token: tokenO,
+        json: { name_id: 'Test', name_en: 'Test', price: 1000 }
+    });
+    check('Owner TIDAK BISA membuat layanan baru (403)', ownerCreateService.status === 403, `(status ${ownerCreateService.status})`);
+
+    const ownerUpdateSettings = await api('PUT', '/api/admin/settings', {
+        token: tokenO,
+        json: { payment_bank: 'HACK' }
+    });
+    check('Owner TIDAK BISA mengubah pengaturan (403)', ownerUpdateSettings.status === 403, `(status ${ownerUpdateSettings.status})`);
+
+    const ownerAssign = await api('PATCH', `/api/consultations/${consId}/assign`, {
+        token: tokenO,
+        json: { consultant_id: consultantId }
+    });
+    check('Owner TIDAK BISA menugaskan konsultan (403)', ownerAssign.status === 403, `(status ${ownerAssign.status})`);
+
+    const ownerChangeStatus = await api('PATCH', `/api/consultations/${consId}/status`, {
+        token: tokenO,
+        json: { status: 'completed' }
+    });
+    check('Owner TIDAK BISA mengubah status konsultasi (403)', ownerChangeStatus.status === 403, `(status ${ownerChangeStatus.status})`);
+
+    const ownerSendMessage = await api('POST', `/api/consultations/${consId}/messages`, {
+        token: tokenO,
+        json: { body: 'Pesan dari owner' }
+    });
+    check('Owner TIDAK BISA mengirim pesan chat (403)', ownerSendMessage.status === 403, `(status ${ownerSendMessage.status})`);
 }
 
 async function main() {

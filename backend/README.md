@@ -22,6 +22,7 @@ Node.js + Express 5 + MySQL · cPanel-compatible (pure-JS dependencies only)
    - `database/schema.sql`
    - `database/migrations/001_add_mime_type_to_manuscripts.sql`
    - `database/migrations/002_add_settings_payments_messages.sql`
+   - `database/migrations/003_add_owner_role.sql`
 3. Salin `.env.example` menjadi `.env`, lalu sesuaikan variabelnya.
 4. Install dependensi dan jalankan:
 
@@ -31,10 +32,11 @@ npm run dev
 ```
 
 5. Cek status server: `curl http://localhost:3000/api/health` → `{"status":"ok","db":"connected"}`.
-6. Buat akun admin awal:
+6. Buat akun admin & akun owner awal:
 
 ```bash
 npm run seed:admin
+npm run seed:owner
 ```
 
 7. Buat 6 layanan awal:

@@ -339,6 +339,20 @@
     "completed": "Completed",
     "cancelled": "Cancelled"
   },
+  "role": {
+    "client": "Client",
+    "consultant": "Consultant",
+    "admin": "Admin",
+    "owner": "Owner"
+  },
+  "owner": {
+    "portal_subtitle": "Executive Owner Monitoring Portal",
+    "banner_title": "Executive Monitoring Mode (Owner)",
+    "banner_desc": "You have full monitoring access to all consultations, financial transactions, and services without data modification privileges.",
+    "badge": "Monitoring Only",
+    "readonly_notice": "Monitoring Mode: Owner account cannot modify this data.",
+    "msg_readonly": "Monitoring Mode: Owner account can only monitor the conversation."
+  },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",

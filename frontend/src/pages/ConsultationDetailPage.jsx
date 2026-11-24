@@ -82,29 +82,26 @@ function StatusTimeline({ currentStatus }) {
           <div key={s} className="flex items-center gap-2 flex-shrink-0">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
-                  isCurrent
-                    ? 'bg-navy border-navy text-white'
-                    : isDone
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${isCurrent
+                  ? 'bg-navy border-navy text-white'
+                  : isDone
                     ? 'bg-teal border-teal text-white'
                     : 'bg-gray-100 border-gray-200 text-gray-400'
-                }`}
+                  }`}
               >
                 {isDone && !isCurrent ? '✓' : i + 1}
               </div>
               <span
-                className={`text-xs mt-1 text-center w-20 leading-tight ${
-                  isCurrent ? 'text-navy font-semibold' : isDone ? 'text-teal' : 'text-gray-400'
-                }`}
+                className={`text-xs mt-1 text-center w-20 leading-tight ${isCurrent ? 'text-navy font-semibold' : isDone ? 'text-teal' : 'text-gray-400'
+                  }`}
               >
                 {t(`status.${s}`)}
               </span>
             </div>
             {i < mainFlow.length - 1 && (
               <div
-                className={`hidden sm:block h-0.5 w-8 flex-shrink-0 ${
-                  isDone && !isCurrent ? 'bg-teal' : 'bg-gray-200'
-                }`}
+                className={`hidden sm:block h-0.5 w-8 flex-shrink-0 ${isDone && !isCurrent ? 'bg-teal' : 'bg-gray-200'
+                  }`}
               />
             )}
           </div>
@@ -137,7 +134,7 @@ function PaymentSection({ consultation, onPaymentUpdated }) {
     settingsApi
       .payment()
       .then((res) => setBankInfo(res.data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   function handleCopy(text) {
@@ -319,6 +316,8 @@ function PaymentSection({ consultation, onPaymentUpdated }) {
 // ─── Manuscript Upload & Version History ───────────────────────────────────────
 function ManuscriptSection({ manuscripts, consultationId, onUploaded }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isOwner = user?.role === 'owner';
   const fileRef = useRef(null);
   const [file, setFile] = useState(null);
   const [err, setErr] = useState('');
@@ -383,26 +382,32 @@ function ManuscriptSection({ manuscripts, consultationId, onUploaded }) {
       </div>
 
       {/* Drop area */}
-      <label
-        htmlFor="ms-file-input"
-        className="flex flex-col items-center justify-center py-6 cursor-pointer rounded-xl bg-cream hover:bg-cream-dark border-2 border-dashed border-gray-200 hover:border-navy/30 transition-colors"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          pickFile(e.dataTransfer.files[0]);
-        }}
-      >
-        <span className="text-3xl mb-1">📄</span>
-        <span className="text-sm text-gray-600 font-medium">{t('manuscript.drop')}</span>
-        <input
-          id="ms-file-input"
-          ref={fileRef}
-          type="file"
-          accept=".pdf,.docx"
-          className="hidden"
-          onChange={(e) => pickFile(e.target.files[0])}
-        />
-      </label>
+      {!isOwner ? (
+        <label
+          htmlFor="ms-file-input"
+          className="flex flex-col items-center justify-center py-6 cursor-pointer rounded-xl bg-cream hover:bg-cream-dark border-2 border-dashed border-gray-200 hover:border-navy/30 transition-colors"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            pickFile(e.dataTransfer.files[0]);
+          }}
+        >
+          <span className="text-3xl mb-1">📄</span>
+          <span className="text-sm text-gray-600 font-medium">{t('manuscript.drop')}</span>
+          <input
+            id="ms-file-input"
+            ref={fileRef}
+            type="file"
+            accept=".pdf,.docx"
+            className="hidden"
+            onChange={(e) => pickFile(e.target.files[0])}
+          />
+        </label>
+      ) : (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-center">
+          <p className="text-xs text-amber-800 font-medium">👑 {t('owner.readonly_notice')}</p>
+        </div>
+      )}
 
       {file && (
         <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
@@ -493,10 +498,10 @@ function MessagesSection({ consultationId, currentUser }) {
       .then((res) => {
         if (isMounted) {
           setMessagesList(res.data || []);
-          messageApi.markRead(consultationId).catch(() => {});
+          messageApi.markRead(consultationId).catch(() => { });
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (isMounted) setLoading(false);
       });
@@ -515,14 +520,14 @@ function MessagesSection({ consultationId, currentUser }) {
                 const existingIds = new Set(prev.map((m) => m.id));
                 const brandNew = res.data.filter((m) => !existingIds.has(m.id));
                 if (brandNew.length > 0) {
-                  messageApi.markRead(consultationId).catch(() => {});
+                  messageApi.markRead(consultationId).catch(() => { });
                   return [...prev, ...brandNew];
                 }
                 return prev;
               });
             }
           })
-          .catch(() => {});
+          .catch(() => { });
         return currentList;
       });
     }
@@ -547,7 +552,7 @@ function MessagesSection({ consultationId, currentUser }) {
     try {
       const res = await messageApi.list(consultationId);
       setMessagesList(res.data || []);
-      messageApi.markRead(consultationId).catch(() => {});
+      messageApi.markRead(consultationId).catch(() => { });
     } catch {
       // ignore
     }
@@ -647,11 +652,10 @@ function MessagesSection({ consultationId, currentUser }) {
                 </div>
 
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                    isMe
-                      ? 'bg-navy text-white rounded-br-none'
-                      : 'bg-cream text-navy rounded-bl-none border border-gray-200'
-                  }`}
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isMe
+                    ? 'bg-navy text-white rounded-br-none'
+                    : 'bg-cream text-navy rounded-bl-none border border-gray-200'
+                    }`}
                 >
                   {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
 
@@ -661,9 +665,8 @@ function MessagesSection({ consultationId, currentUser }) {
                         type="button"
                         onClick={() => downloadAttachment(m.id, m.attachment_path.split('/').pop())}
                         disabled={downloadingAtt === m.id}
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold underline ${
-                          isMe ? 'text-gold hover:text-white' : 'text-navy hover:text-gold'
-                        }`}
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold underline ${isMe ? 'text-gold hover:text-white' : 'text-navy hover:text-gold'
+                          }`}
                       >
                         {downloadingAtt === m.id ? <Spinner size="sm" /> : `📎 ${t('messages.download_attachment')}`}
                       </button>
@@ -678,65 +681,73 @@ function MessagesSection({ consultationId, currentUser }) {
       </div>
 
       {/* Send Input */}
-      <form onSubmit={handleSend} className="space-y-2 pt-3 border-t border-gray-100">
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value.slice(0, 2000))}
-          placeholder={t('messages.placeholder')}
-          className="!min-h-[70px] text-sm"
-        />
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.jpg,.jpeg,.png"
-              className="hidden"
-              id="msg-att-input"
-              onChange={(e) => pickAttachment(e.target.files[0])}
-            />
-            <label
-              htmlFor="msg-att-input"
-              className="btn-secondary !py-1 !px-2.5 !text-xs cursor-pointer flex items-center gap-1"
-            >
-              📎 {t('messages.attach_btn')}
-            </label>
-
-            {attachment && (
-              <span className="text-xs text-navy font-medium flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
-                <span className="truncate max-w-[150px]">{attachment.name}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAttachment(null);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  className="text-gray-400 hover:text-red-500"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-gray-400">
-              {t('messages.char_count', { count: text.length })}
-            </span>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={(!text.trim() && !attachment) || sending}
-              className="!py-1.5 !px-4 !text-xs"
-            >
-              {sending ? <><Spinner size="sm" />{t('messages.sending')}</> : t('messages.send_btn')}
-            </Button>
-          </div>
+      {currentUser?.role === 'owner' ? (
+        <div className="pt-3 border-t border-gray-100 text-center">
+          <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 font-medium">
+            👑 {t('owner.msg_readonly')}
+          </p>
         </div>
+      ) : (
+        <form onSubmit={handleSend} className="space-y-2 pt-3 border-t border-gray-100">
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value.slice(0, 2000))}
+            placeholder={t('messages.placeholder')}
+            className="!min-h-[70px] text-sm"
+          />
 
-        {sendErr && <p className="text-xs text-red-600">{sendErr}</p>}
-      </form>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.jpg,.jpeg,.png"
+                className="hidden"
+                id="msg-att-input"
+                onChange={(e) => pickAttachment(e.target.files[0])}
+              />
+              <label
+                htmlFor="msg-att-input"
+                className="btn-secondary !py-1 !px-2.5 !text-xs cursor-pointer flex items-center gap-1"
+              >
+                📎 {t('messages.attach_btn')}
+              </label>
+
+              {attachment && (
+                <span className="text-xs text-navy font-medium flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
+                  <span className="truncate max-w-[150px]">{attachment.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachment(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-gray-400">
+                {t('messages.char_count', { count: text.length })}
+              </span>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={(!text.trim() && !attachment) || sending}
+                className="!py-1.5 !px-4 !text-xs"
+              >
+                {sending ? <><Spinner size="sm" />{t('messages.sending')}</> : t('messages.send_btn')}
+              </Button>
+            </div>
+          </div>
+
+          {sendErr && <p className="text-xs text-red-600">{sendErr}</p>}
+        </form>
+      )}
     </div>
   );
 }

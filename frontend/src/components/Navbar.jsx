@@ -281,6 +281,12 @@ export default function Navbar() {
 
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-navy truncate">{user.name}</p>
+                      <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-navy/10 text-navy">
+                        {user.role === 'owner' ? '👑 ' + t('role.owner') : user.role === 'admin' ? '🛡️ ' + t('role.admin') : user.role === 'consultant' ? '🎓 ' + t('role.consultant') : '👤 ' + t('role.client')}
+                      </span>
+                    </div>
                     <Link
                       to="/dashboard"
                       onClick={() => setUserMenuOpen(false)}
@@ -424,8 +430,11 @@ export default function Navbar() {
             <div className="border-t border-white/10 pt-3 mt-3 px-3 space-y-2">
               {user ? (
                 <div className="space-y-1">
-                  <div className="text-xs font-semibold text-gold uppercase tracking-wider pb-1">
-                    {user.name}
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-xs font-semibold text-gold uppercase tracking-wider">{user.name}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-gold border border-gold/30">
+                      {user.role === 'owner' ? '👑 Owner' : user.role === 'admin' ? '🛡️ Admin' : user.role === 'consultant' ? '🎓 Konsultan' : '👤 Klien'}
+                    </span>
                   </div>
                   <Link
                     to="/dashboard"

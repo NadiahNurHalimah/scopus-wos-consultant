@@ -317,7 +317,7 @@ function ConsultationCard({ c, currentUserRole }) {
 }
 
 // ─── TAB: Admin Payments Verification ─────────────────────────────────────────
-function AdminPaymentsTab() {
+function AdminPaymentsTab({ isOwner = false }) {
   const { t } = useTranslation();
   const [paymentsList, setPaymentsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -472,22 +472,28 @@ function AdminPaymentsTab() {
                   )}
 
                   {p.status === 'pending' && (
-                    <>
-                      <Button
-                        variant="primary"
-                        className="!py-1 !px-2.5 !text-xs"
-                        onClick={() => setApproveTarget(p)}
-                      >
-                        ✓ {t('payment.approve_btn')}
-                      </Button>
-                      <Button
-                        variant="danger"
-                        className="!py-1 !px-2.5 !text-xs"
-                        onClick={() => { setRejectTarget(p); setRejectNote(''); }}
-                      >
-                        ✕ {t('payment.reject_btn')}
-                      </Button>
-                    </>
+                    isOwner ? (
+                      <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                        👁️ {t('owner.badge')}
+                      </span>
+                    ) : (
+                      <>
+                        <Button
+                          variant="primary"
+                          className="!py-1 !px-2.5 !text-xs"
+                          onClick={() => setApproveTarget(p)}
+                        >
+                          ✓ {t('payment.approve_btn')}
+                        </Button>
+                        <Button
+                          variant="danger"
+                          className="!py-1 !px-2.5 !text-xs"
+                          onClick={() => { setRejectTarget(p); setRejectNote(''); }}
+                        >
+                          ✕ {t('payment.reject_btn')}
+                        </Button>
+                      </>
+                    )
                   )}
                 </div>
               </div>
@@ -552,7 +558,7 @@ function AdminPaymentsTab() {
 }
 
 // ─── TAB: Admin Settings (Rekening Transfer) ───────────────────────────────────
-function AdminSettingsTab() {
+function AdminSettingsTab({ isOwner = false }) {
   const { t } = useTranslation();
   const [bank, setBank] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -613,6 +619,7 @@ function AdminSettingsTab() {
           value={bank}
           onChange={(e) => setBank(e.target.value)}
           placeholder={t('admin.bank_placeholder')}
+          disabled={isOwner}
           required
         />
         <Input
@@ -621,6 +628,7 @@ function AdminSettingsTab() {
           value={accountNumber}
           onChange={(e) => setAccountNumber(e.target.value)}
           placeholder={t('admin.account_number_placeholder')}
+          disabled={isOwner}
           required
         />
         <Input
@@ -629,18 +637,25 @@ function AdminSettingsTab() {
           value={accountName}
           onChange={(e) => setAccountName(e.target.value)}
           placeholder={t('admin.account_name_placeholder')}
+          disabled={isOwner}
           required
         />
-        <Button type="submit" variant="primary" disabled={saving} className="w-full !py-2.5">
-          {saving ? <><Spinner size="sm" />{t('common.loading')}</> : t('admin.save_settings')}
-        </Button>
+        {isOwner ? (
+          <p className="text-center text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+            👑 {t('owner.readonly_notice')}
+          </p>
+        ) : (
+          <Button type="submit" variant="primary" disabled={saving} className="w-full !py-2.5">
+            {saving ? <><Spinner size="sm" />{t('common.loading')}</> : t('admin.save_settings')}
+          </Button>
+        )}
       </form>
     </div>
   );
 }
 
 // ─── TAB: Admin Manage Services ───────────────────────────────────────────────
-function AdminServicesTab() {
+function AdminServicesTab({ isOwner = false }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.slice(0, 2) || 'id';
 
@@ -759,9 +774,11 @@ function AdminServicesTab() {
           <h2 className="font-heading font-semibold text-navy text-base">{t('admin.services_title')}</h2>
           <p className="text-gray-500 text-xs mt-0.5">{t('admin.services_desc')}</p>
         </div>
-        <Button variant="gold" onClick={openCreate} className="!py-1.5 !px-3 !text-xs">
-          {t('admin.add_service')}
-        </Button>
+        {!isOwner && (
+          <Button variant="gold" onClick={openCreate} className="!py-1.5 !px-3 !text-xs">
+            {t('admin.add_service')}
+          </Button>
+        )}
       </div>
 
       {error && <ErrorBox message={error} onRetry={loadServices} />}
@@ -792,24 +809,30 @@ function AdminServicesTab() {
 
               <div className="flex items-center justify-between pt-3 border-t border-gray-100 text-xs">
                 <span className="font-extrabold text-navy text-sm">{formatCurrency(s.price)}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(s)}
-                    className="text-xs text-navy font-semibold hover:text-gold"
-                  >
-                    ✏️ {t('admin.edit_service')}
-                  </button>
-                  {s.is_active === 1 && (
+                {!isOwner ? (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setDeleteTarget(s)}
-                      className="text-xs text-red-600 font-semibold hover:text-red-800"
+                      onClick={() => openEdit(s)}
+                      className="text-xs text-navy font-semibold hover:text-gold"
                     >
-                      🗑️ {t('admin.delete_service')}
+                      ✏️ {t('admin.edit_service')}
                     </button>
-                  )}
-                </div>
+                    {s.is_active === 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(s)}
+                        className="text-xs text-red-600 font-semibold hover:text-red-800"
+                      >
+                        🗑️ {t('admin.delete_service')}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-medium">
+                    👁️ {t('owner.badge')}
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -1026,6 +1049,8 @@ export default function DashboardPage() {
                 ? 'Portal Manajemen Admin Scientia Advantage'
                 : role === 'consultant'
                 ? 'Portal Konsultan Akademik'
+                : role === 'owner'
+                ? t('owner.portal_subtitle')
                 : t('dashboard.my_consultations')}
             </p>
           </div>
@@ -1036,6 +1061,22 @@ export default function DashboardPage() {
             </Button>
           )}
         </div>
+
+        {/* Banner Khusus Mode Pemantauan Owner */}
+        {role === 'owner' && (
+          <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">👑</span>
+              <div>
+                <h3 className="text-sm font-bold text-amber-900">{t('owner.banner_title')}</h3>
+                <p className="text-xs text-amber-700">{t('owner.banner_desc')}</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 whitespace-nowrap">
+              {t('owner.badge')}
+            </span>
+          </div>
+        )}
 
         {/* 4 Kartu Ringkasan (Target K) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
@@ -1107,8 +1148,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Top Tabs for Admin */}
-        {role === 'admin' && (
+        {/* Top Tabs for Admin & Owner */}
+        {(role === 'admin' || role === 'owner') && (
           <div className="flex border-b border-gray-200 mb-6 gap-2 sm:gap-4 overflow-x-auto">
             {[
               { id: 'consultations', label: t('dashboard.tab_consultations'), icon: '📋' },
@@ -1210,14 +1251,20 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* TAB: Payments Verification (Admin only) */}
-        {role === 'admin' && activeAdminTab === 'payments' && <AdminPaymentsTab />}
+        {/* TAB: Payments Verification (Admin & Owner) */}
+        {(role === 'admin' || role === 'owner') && activeAdminTab === 'payments' && (
+          <AdminPaymentsTab isOwner={role === 'owner'} />
+        )}
 
-        {/* TAB: Transfer Settings (Admin only) */}
-        {role === 'admin' && activeAdminTab === 'settings' && <AdminSettingsTab />}
+        {/* TAB: Transfer Settings (Admin & Owner) */}
+        {(role === 'admin' || role === 'owner') && activeAdminTab === 'settings' && (
+          <AdminSettingsTab isOwner={role === 'owner'} />
+        )}
 
-        {/* TAB: Manage Services (Admin only) */}
-        {role === 'admin' && activeAdminTab === 'services' && <AdminServicesTab />}
+        {/* TAB: Manage Services (Admin & Owner) */}
+        {(role === 'admin' || role === 'owner') && activeAdminTab === 'services' && (
+          <AdminServicesTab isOwner={role === 'owner'} />
+        )}
       </div>
 
       {/* New Consultation Modal for Client */}
